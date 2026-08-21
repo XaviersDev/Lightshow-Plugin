@@ -1,0 +1,42 @@
+name: LightShow
+version: ${project.version}
+main: ru.lightshow.LightShow
+api-version: 1.16
+author: lightshow
+softdepend: [ProtocolLib]
+provides: [LightShowAPI]
+description: Particle show engine with formulas, scenes, text, emitters and a public Java API.
+website: https://github.com/XaviersDev/Lightshow-Plugin
+
+commands:
+  pshow:
+    description: Главная команда LightShow
+    usage: /pshow help
+    aliases: [ps, lightshow]
+  ptext:
+    description: Показать текст частицами
+    usage: /ptext <текст> [ключ:значение]
+    aliases: [pt]
+  pimage:
+    description: Картинка по ссылке частицами
+    usage: /pimage <имя> <url>
+  pstop:
+    description: Остановить шоу
+    usage: /pstop [all|id]
+  phelp:
+    description: Помощь по LightShow
+    usage: /phelp [страница]
+
+permissions:
+  lightshow.use:
+    description: Запускать шоу
+    default: true
+  lightshow.edit:
+    description: Создавать и удалять пресеты, рисовать в GUI
+    default: op
+  lightshow.ai:
+    description: Генерация шоу нейросетью
+    default: op
+  lightshow.admin:
+    description: reload, ambient, stop all
+    default: op

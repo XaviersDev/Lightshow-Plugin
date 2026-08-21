@@ -1,0 +1,121 @@
+rev: 3
+
+presets:
+
+  # ─────────── ЧИТАЙ ЭТО ───────────
+  # Частица end_rod живёт у клиента ~60 тиков.
+  # Живых частиц у игрока = точки * 60 / refresh.
+  # Поэтому статичным слоям ставим refresh:12-20 (дёшево и не мигает),
+  # а низкий refresh — только там, где что-то реально движется.
+
+  koltso:
+    type: math
+    layers:
+      - "x=4*cos(t);y=4*sin(t)"
+    params: "steps:160 dur:20s dist:6 refresh:15"
+
+  beskonechnost:
+    type: math
+    layers:
+      - "x=6*cos(t);y=3*sin(t)*cos(t)"
+    params: "steps:240 dur:20s dist:8 refresh:15"
+
+  astroida:
+    type: math
+    layers:
+      - "x=4*cos(t)^3;y=4*sin(t)^3"
+    params: "steps:220 dur:20s dist:7 refresh:15"
+
+  roza:
+    type: math
+    layers:
+      - "x=5*cos(4*t)*cos(t);y=5*cos(4*t)*sin(t)"
+    params: "steps:400 dur:20s dist:8 refresh:15"
+
+  serdce:
+    type: math
+    layers:
+      - "let s=0.35; x=s*16*sin(t)^3; y=s*(13*cos(t)-5*cos(2*t)-2*cos(3*t)-cos(4*t))"
+    params: "steps:260 dur:20s dist:7 refresh:15"
+
+  zvezda:
+    type: math
+    layers:
+      - "let r=4*(0.62+0.38*cos(5*t)); x=r*cos(t); y=r*sin(t)"
+    params: "steps:320 dur:20s dist:8 refresh:15"
+
+  puls:
+    type: math
+    layers:
+      - "let r=4+1.2*sin(T*3); x=r*cos(t); y=r*sin(t)"
+    params: "steps:180 dur:30s dist:7 refresh:4"
+
+  # ─────────── ГЛАЗ ───────────
+  # Контур — параболическая линза y=b*cos(t)*abs(cos(t)): острые углы, широкая середина.
+  # (Раньше тут была лемниската — восьмёрка с самопересечением, отсюда и кривизна.)
+  demon_eye:
+    type: math
+    layers:
+      - "let b=1-.85*max(0,1-abs(frac(T*.13)*40-1));let k=1+.02*sin(T*2);x=9*k*sin(t);y=3.2*k*b*cos(t)*abs(cos(t)) @ steps:200 refresh:8"
+      - "let b=1-.85*max(0,1-abs(frac(T*.13)*40-1));x=8.1*sin(t);y=2.55*b*cos(t)*abs(cos(t)) @ steps:160 refresh:8"
+      - "let b=1-.85*max(0,1-abs(frac(T*.13)*40-1));let m=1+u*.2;x=9*m*sin(t);y=3.2*m*b*cos(t)*abs(cos(t)) @ mode:surface steps:15 usteps:4 refresh:10"
+      - "let b=1-.85*max(0,1-abs(frac(T*.13)*40-1));let a=step4(T*.45)*pi/2;let o=4*cos(a);let q=.45*sin(a);let r=1.85+.07*sin(T*5);x=r*cos(t)+o;y=(r*sin(t)+q)*b @ steps:110 refresh:4"
+      - "let b=1-.85*max(0,1-abs(frac(T*.13)*40-1));let a=step4(T*.45)*pi/2;let o=4*cos(a);let q=.45*sin(a);let w=T*1.3;let s=.85+.1*sin(T*4);let m=s*cos(t)^3;let d=s*sin(t)^3;x=m*cos(w)-d*sin(w)+o;y=(m*sin(w)+d*cos(w)+q)*b @ steps:90 refresh:4"
+      - "let g=frac(T*.45);let k=1+g*.55;let b=1-.85*max(0,1-abs(frac(T*.13)*40-1));x=9*k*sin(t);y=3.2*k*b*cos(t)*abs(cos(t)) @ steps:80 refresh:3"
+    params: "dur:inf dist:26 view:110 cull:0 in:fly int:35t flyd:22 max:600"
+
+  # ─────────── объём ───────────
+  sfera:
+    type: math
+    layers:
+      - "x=5*sin(u)*cos(t); y=5*cos(u); z=5*sin(u)*sin(t)"
+    params: "mode:surface u:0..3.1416 steps:34 usteps:20 dur:20s dist:9 refresh:14"
+
+  tor:
+    type: math
+    layers:
+      - "x=(5+1.6*cos(u))*cos(t); y=1.6*sin(u); z=(5+1.6*cos(u))*sin(t)"
+    params: "mode:surface u:0..6.2832 steps:48 usteps:12 dur:20s dist:10 spin:0,12,0 refresh:6"
+
+  # ─────────── спиральный коридор шириной 3 блока ───────────
+  # cull:40 — точки дальше 40 блоков от игрока просто не отправляются.
+  # Без этого коридор на 4800 точек рассылал всё разом и вешал пинг.
+  spiral_koridor:
+    type: math
+    layers:
+      - "x=9*cos(t); y=1.4*t; z=9*sin(t)"
+    params: "mode:tube radius:1.5 sides:10 t:0..25 steps:400 dur:inf refresh:20 cull:40 view:96 face:north max:300"
+
+  dnk:
+    type: math
+    layers:
+      - "x=2*cos(t); y=0.55*t; z=2*sin(t) @ steps:260"
+      - "x=2*cos(t+pi); y=0.55*t; z=2*sin(t+pi) @ steps:260"
+    params: "t:0..25 dur:inf dist:6 face:north refresh:14 cull:40"
+
+  # ─────────── полёт частиц ───────────
+  portal_luch:
+    type: math
+    layers:
+      - "x=3*cos(t); y=0; z=3*sin(t)"
+    params: "steps:90 dur:inf motion:up mspeed:0.35 refresh:2 face:north"
+
+  vzryv_v_igroka:
+    type: math
+    layers:
+      - "x=5*cos(t)*cos(u*3); y=5*sin(u*3); z=5*sin(t)*cos(u*3)"
+    params: "mode:surface u:-0.5..0.5 steps:26 usteps:10 dur:10s dist:12 motion:to_player mspeed:0.4 refresh:3"
+
+  aura:
+    type: math
+    layers:
+      - "let r=1.2; x=r*cos(t+T*2); y=0.1*sin(t*3+T*4); z=r*sin(t+T*2)"
+    params: "steps:50 dur:inf anchor:player offset:0,0.2,0 refresh:3 particle:soul_fire motion:up mspeed:0.03 view:48"
+
+  # ─────────── редкие цветные искры в воздухе на огромной площади ───────────
+  # Тот самый случай, когда dust уместен: точек мало, обновляются редко.
+  iskry:
+    type: math
+    layers:
+      - "let a=noise(i*.137)*70;let b=noise(i*.371+9)*26+14;let c=noise(i*.713+21)*70;x=a;y=b;z=c"
+    params: "steps:200 dur:inf refresh:20 cull:0 view:160 particle:dust color:rainbow psize:1.6 motion:up mspeed:0.01 max:60"
