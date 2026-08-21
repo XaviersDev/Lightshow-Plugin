@@ -9,6 +9,8 @@
 [![Release](https://img.shields.io/github/v/release/XaviersDev/Lightshow-Plugin?label=download)](https://github.com/XaviersDev/Lightshow-Plugin/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
+[![](https://jitpack.io/v/XaviersDev/Lightshow-Plugin.svg)](https://jitpack.io/#XaviersDev/Lightshow-Plugin)
+
 [English](#english) · [Русский](#русский)
 
 </div>
