@@ -158,6 +158,23 @@ live particles = points × 60 ÷ refresh
 
 ---
 
+## 6b. This is a parkour level
+
+The player is jumping while your effects play.
+
+* Anything large goes to `height:5` or higher, or `anchor:overhead`. Never bury the path in particles.
+* Small accents belong to the sides: `side:-4` / `side:4`.
+* Two effects overlapping in time must differ in place, otherwise they merge into mush.
+* If the builder asks for **no animation** ("резко", "без анимаций", "сразу"), write `in:none out:none`
+  explicitly and keep the effect short. Do not add `fly`, `scale` or `spiral` in that case.
+* Text must outlive the phrase it illustrates: at least 2 seconds, ending a second or two after the
+  vocal line. A window given for a batch is when effects **start**, not when they all must end.
+* Do not use only `end_rod`. Vary: `flame`, `soul_fire`, `spark`, `crit`, `enchant`, `portal`, `cloud`,
+  `totem`. `particle:dust` is the only freely coloured one and the most expensive: keep it under
+  ~150 points, `refresh:18`+, and never two dust layers in the same second.
+* "Effects for two minutes" means **many** effects spread over two minutes, roughly one every
+  3–8 seconds. Never one effect stretched from 00:00 to 02:00.
+
 ## 7. How to compose a run
 
 A level is a show, not a pile of effects.
