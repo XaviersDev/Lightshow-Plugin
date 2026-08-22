@@ -230,6 +230,19 @@ owner player; with no owner at all you must call `at()`.
 The standard ramp is `smooth((T-A)/B)`: 0 before second A, rises over B seconds, then stays 1.
 Because it clamps, a movement stops and **stays** at its end value.
 
+### 6.4b Whole-figure flight and letter animation
+
+```java
+.burst(true)                       // the layer lights up in one frame
+.drift(0.12, 0, -0.3)              // the figure flies, blocks per tick, world axes
+.wave(0.35, 5)                     // a wave running through the letters
+.in("letters", 26).out("letters", 18)
+```
+
+`drift` moves the spawn point and every living particle by the same law, so nothing is left
+behind and no extra particles are created. Text layers are split per glyph, which is what makes
+`letters`, `typeletters` and `popletters` possible.
+
 ### 6.5 Particle motion and emitters
 
 ```java
@@ -535,8 +548,8 @@ Anything reachable through `param(key, value)` / `params(spec)`. **S** = show-le
 **Placement (S):** `dist at world anchor face offset size spin`
 **Time (S):** `dur loop` — **(L):** `from to every for in out int outt`
 **Geometry (L):** `mode steps usteps sides radius t u px`
-**Look (L):** `particle color psize sound svol spitch`
-**Motion (L):** `motion mspeed vx vy vz trail tgap jitter chance count spread lift`
+**Look (L):** `particle color psize sound svol spitch burst wave`
+**Motion (L):** `motion mspeed vx vy vz trail tgap jitter chance count spread lift drift`
 **Transform (L):** `ox oy oz zoom rotx roty rotz`
 **Text (L):** `font align spacing lgap outline`
 **Frames (L):** `fps pingpong`
