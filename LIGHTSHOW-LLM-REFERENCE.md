@@ -135,6 +135,10 @@ Notable ones:
 * `smooth(x)` — clamps to `0..1` then eases. **The standard ramp is `smooth((T-A)/B)`**: 0 before
   second `A`, rises over `B` seconds, then stays 1 forever. Combine with `lerp(from,to,ramp)`.
 * `lerp(a,b,k)` / `mix(a,b,k)` — linear blend.
+* `key(x, x0,y0, x1,y1, …)` — **keyframes** with soft transitions between them. Use it instead of
+  stacking `lerp` and `smooth`: `oy:key(T, 0,10, 1.5,0, 5,0, 6,-8)`.
+* `bez(x,a,b,c,d)` — cubic Bézier through four control values. `curve(x,in,out)` — easing with
+  your own handles, like the tangents of a keyframe.
 * `noise(x)` — smooth pseudo-random in `-1..1`. `noise(i*.13)` gives a stable random value **per point**;
   add the cycle variable to vary it per emission.
 * `if(cond,a,b)` with comparisons `< > <= >= == !=` — the way to **cut one shape out of another**.
@@ -200,7 +204,7 @@ Written as `key:value`, separated by spaces. **S** = show-level (one per show), 
 | `at:` | — | absolute or relative coords: `at:0,80,0`, `at:~,~5,~` |
 | `world:` | player's | world name, for `at:` / ambient |
 | `anchor:` | `world` | `world` = fixed, `player` = follows the owner |
-| `face:` | `player` | orientation: `player north south east west up down auto` |
+| `face:` | `player` | orientation: `loc` (from the anchor Location's own direction), `player north south east west up down auto` |
 | `offset:` | `0,0,0` | static shift of the whole show |
 | `size:` | 1 | global scale multiplier |
 | `spin:` | 0 | degrees per second, one number (Y axis) or `x,y,z` |
@@ -216,13 +220,18 @@ Written as `key:value`, separated by spaces. **S** = show-level (one per show), 
 | `to:` | show `dur` | when it disappears |
 | `every:` / `for:` | 0 | repeat the layer in cycles: `every:2s for:0.6s` |
 | `in:` / `out:` | `none` | entrance / exit animation |
+| `burst:` | false | light the whole layer in ONE frame instead of spreading it over `refresh` ticks |
 | `int:` / `outt:` | `10t` | their durations |
 | `ox: oy: oz:` | 0 | layer offset, **formulas of `T`** |
 | `zoom:` | 1 | layer scale, formula of `T` |
 | `rotx: roty: rotz:` | 0 | layer rotation in degrees, formulas of `T` |
 
 `in:` values: `fly fade type wipe rise drop explode scale spiral none`
+plus, for **text layers only**: `letters` (each letter flies in on its own), `typeletters`
+(letters appear one by one, no flight), `popletters` (each letter grows on its own beat).
+
 `out:` values: `fly fade scatter fall dissolve wipe implode shrink none`
+plus `letters` for text (letters scatter one after another).
 
 `in:fly` spawns the particles `flyd:` blocks further away and lets them fly to their place using
 vanilla velocity, arriving exactly as they expire. Each point departs at its own moment.
@@ -260,6 +269,8 @@ vanilla velocity, arriving exactly as they expire. Each point departs at its own
 | `chance:` | 1 | probability the point fires on its turn |
 | `count:` / `spread:` | 0 / 0.3 | pack several particles into ONE packet (clouds, smoke); incompatible with a velocity |
 | `lift:` | 0 | small upward velocity to counter end_rod's slight gravity |
+| `drift:x,y,z` | — | the WHOLE figure flies, blocks per tick, world axes. See below. |
+| `wave:amp,speed` | — | wave running through the letters of a text layer |
 
 ### 6.6 Performance (S unless noted)
 
@@ -310,6 +321,30 @@ object lands and remains. `dur:` on the `play` line must cover the whole scenari
 Layers whose `ox/oy/oz/zoom/rot*` depend on `T` automatically drop to `refresh:3` so they do not smear.
 
 ---
+
+## 7b. Moving a whole figure without a trail — `drift:`
+
+A particle cannot be moved after it is sent, so animating a shape by re-spawning its points at new
+coordinates leaves the old particles hanging behind it. `drift:` solves this properly:
+
+```
+drift:0.12,0,-0.3        blocks per tick, world axes
+```
+
+The engine advances the spawn point by `v·(1−0.98^age)/0.02` — the exact integral of a particle's
+path under the 0.98 friction — and multiplies each new spawn's velocity by `0.98^age`. Spawn point
+and every living particle therefore travel in lockstep: verified drift between them is 0.000 blocks
+at ticks 20, 40 and 60. The client does all the moving, and **not a single extra particle is
+created** — there are exactly as many as there would be standing still.
+
+Pair it with `burst:true` and `refresh:40`: re-spawning often is pointless when the client is
+already carrying each particle for its whole life.
+
+## 7c. Text is rendered letter by letter
+
+A text layer is split into one group per glyph, so letters can be animated individually
+(`in:letters`, `in:popletters`, `out:letters`, `wave:`). Text also defaults to appearing in a single
+frame — it never loads in strips.
 
 ## 8. Emitters — rain, meteors, sparks, fireworks
 
@@ -448,6 +483,9 @@ steps:200 refresh:20 cull:0 view:160 particle:dust color:rainbow psize:1.6 motio
 | wrong | right |
 |---|---|
 | drawing a frame or border with `cos/sin` | `rectx(t,w,h)` / `recty(t,w,h)` |
+| moving a shape by animating `ox/oy/oz` and leaving a trail | `drift:` |
+| stacking `lerp(a,b,smooth((T-x)/y))` three times | `key(T, …)` |
+| text that loads in strips | `burst:true` (already default for text) |
 | building squares or tetrominoes from formulas | `pix:0110/1111` |
 | a falling object made with `motion:down` on a static point | animate the layer with `oy:…smooth(…)` |
 | a meteor made of one particle with no trail | `vx/vy/vz` + `trail:` + `jitter:` + `chance:` |
