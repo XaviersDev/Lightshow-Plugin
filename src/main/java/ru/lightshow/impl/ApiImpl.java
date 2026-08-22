@@ -182,6 +182,9 @@ public final class ApiImpl implements LightShowAPI {
         public LayerBuilder chance(double probability) { return param("chance", probability); }
         public LayerBuilder batch(int count, double spread) { return param("count", count).param("spread", spread); }
         public LayerBuilder lift(double lift) { return param("lift", lift); }
+        public LayerBuilder burst(boolean burst) { return param("burst", burst); }
+        public LayerBuilder drift(double x, double y, double z) { return param("drift", x + "," + y + "," + z); }
+        public LayerBuilder wave(double amplitude, double speed) { return param("wave", amplitude + "," + speed); }
 
         public LayerBuilder refresh(int ticks) { return param("refresh", ticks); }
         public LayerBuilder sound(String sound, float volume, float pitch) {

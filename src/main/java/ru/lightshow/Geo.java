@@ -15,9 +15,11 @@ public final class Geo {
         public float[] seed = new float[1024];     // стабильный рандом на точку
         public int[] layer = new int[1024];
         public int[] rgb = new int[1024];          // -1 = взять цвет из слоя
+        public int[] grp = new int[1024];          // номер буквы или другой группы
+        public int groups = 1;
         public int size = 0;
 
-        public void clear() { size = 0; }
+        public void clear() { size = 0; groups = 1; group = 0; }
 
         private void grow() {
             int n = x.length * 2;
@@ -25,15 +27,19 @@ public final class Geo {
             tx = java.util.Arrays.copyOf(tx, n); ty = java.util.Arrays.copyOf(ty, n); tz = java.util.Arrays.copyOf(tz, n);
             f = java.util.Arrays.copyOf(f, n); seed = java.util.Arrays.copyOf(seed, n);
             layer = java.util.Arrays.copyOf(layer, n); rgb = java.util.Arrays.copyOf(rgb, n);
+            grp = java.util.Arrays.copyOf(grp, n);
         }
 
         public void add(double px, double py, double pz, double dx, double dy, double dz, double frac, int lay) {
             addC(px, py, pz, dx, dy, dz, frac, lay, -1);
         }
 
+        public int group = 0;
+
         public void addC(double px, double py, double pz, double dx, double dy, double dz, double frac, int lay, int color) {
             if (size >= x.length) grow();
             rgb[size] = color;
+            grp[size] = group;
             x[size] = px; y[size] = py; z[size] = pz;
             tx[size] = dx; ty[size] = dy; tz[size] = dz;
             f[size] = frac; layer[size] = lay;
@@ -234,6 +240,53 @@ public final class Geo {
                     out.addC((x - (w - 1) / 2.0) * px, ((h - 1) / 2.0 - y) * px, 0, 0, 0, 0,
                             w <= 1 ? 0 : (double) x / (w - 1), lay, c);
                 }
+        }
+    }
+
+    // ------------------------------------------------------------- текст по буквам
+
+    public static final class TextGeo implements Source {
+        private final List<Fonts.Glyph> glyphs;
+        private final double width, height;
+        public double px = 0.25;
+
+        public TextGeo(List<Fonts.Glyph> glyphs) {
+            this.glyphs = glyphs;
+            double w = 1, h = 1;
+            for (Fonts.Glyph g : glyphs) {
+                w = Math.max(w, g.x + g.bitmap.w);
+                h = Math.max(h, g.y + g.bitmap.h);
+            }
+            this.width = w;
+            this.height = h;
+        }
+
+        public boolean animated() { return false; }
+
+        public int estimate() {
+            int n = 0;
+            for (Fonts.Glyph g : glyphs) n += g.bitmap.count();
+            return n;
+        }
+
+        public int letters() { return glyphs.size(); }
+
+        public void build(Buf out, int lay, double T, double p) {
+            out.groups = Math.max(out.groups, Math.max(1, glyphs.size()));
+            for (int gi = 0; gi < glyphs.size(); gi++) {
+                Fonts.Glyph glyph = glyphs.get(gi);
+                out.group = gi;
+                for (int y = 0; y < glyph.bitmap.h; y++) {
+                    for (int x = 0; x < glyph.bitmap.w; x++) {
+                        if (!glyph.bitmap.get(x, y)) continue;
+                        double wx = (glyph.x + x - (width - 1) / 2.0) * px;
+                        double wy = ((height - 1) / 2.0 - (glyph.y + y)) * px;
+                        out.add(wx, wy, 0, 0, 0, 0,
+                            glyphs.size() <= 1 ? 0 : (double) gi / (glyphs.size() - 1), lay);
+                    }
+                }
+            }
+            out.group = 0;
         }
     }
 }

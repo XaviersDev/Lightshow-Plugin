@@ -23,6 +23,65 @@ public final class Fonts {
         public int count() { int n = 0; for (boolean b : px) if (b) n++; return n; }
     }
 
+    /** Одна буква со своим местом в строке. */
+    public static final class Glyph {
+        public final Bitmap bitmap;
+        public final int x, y;
+        Glyph(Bitmap bitmap, int x, int y) { this.bitmap = bitmap; this.x = x; this.y = y; }
+    }
+
+    /**
+     * Тот же текст, но разложенный по буквам: каждая со своей картинкой и координатой.
+     * Нужен, чтобы буквы можно было анимировать поодиночке, а не всей строкой сразу.
+     */
+    public static List<Glyph> glyphs(String text, String font, String align, int spacing, int lineGap) {
+        if (text == null) text = "";
+        text = text.replace("\\n", "\n").replace("%n", "\n");
+        if (font != null) font = font.replace('_', ' ').trim();
+        String key = font == null ? "pixel" : font.toLowerCase(Locale.ROOT);
+        PixelFont pf = BUILTIN.get(key);
+        if (pf == null) for (String sf : systemFonts) if (sf.equalsIgnoreCase(font)) { font = sf; break; }
+
+        String[] lines = text.split("\n", -1);
+        List<List<Glyph>> perLine = new ArrayList<List<Glyph>>();
+        List<Integer> widths = new ArrayList<Integer>();
+        List<Integer> heights = new ArrayList<Integer>();
+
+        for (String line : lines) {
+            List<Glyph> row = new ArrayList<Glyph>();
+            int cursor = 0, tallest = 1;
+            for (int i = 0; i < line.length(); i++) {
+                char ch = line.charAt(i);
+                if (ch == ' ') { cursor += 3 + spacing; continue; }
+                Bitmap bm = pf != null ? renderLinePixel(String.valueOf(ch), pf, spacing)
+                    : renderAwt(String.valueOf(ch), font);
+                if (bm == null) bm = renderLinePixel(String.valueOf(ch), BUILTIN.get("pixel"), spacing);
+                row.add(new Glyph(bm, cursor, 0));
+                cursor += bm.w + spacing;
+                tallest = Math.max(tallest, bm.h);
+            }
+            perLine.add(row);
+            widths.add(Math.max(1, cursor - spacing));
+            heights.add(tallest);
+        }
+
+        int maxWidth = 1;
+        for (int w : widths) maxWidth = Math.max(maxWidth, w);
+
+        List<Glyph> out = new ArrayList<Glyph>();
+        int baseY = 0;
+        for (int li = 0; li < perLine.size(); li++) {
+            int shift = 0;
+            if ("center".equals(align)) shift = (maxWidth - widths.get(li)) / 2;
+            else if ("right".equals(align)) shift = maxWidth - widths.get(li);
+            for (Glyph glyph : perLine.get(li)) {
+                out.add(new Glyph(glyph.bitmap, glyph.x + shift, baseY));
+            }
+            baseY += heights.get(li) + lineGap;
+        }
+        return out;
+    }
+
     /** Встроенный растровый шрифт. */
     static final class PixelFont {
         int rows, bpr, cols;

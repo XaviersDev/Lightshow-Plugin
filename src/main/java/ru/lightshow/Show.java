@@ -24,6 +24,10 @@ public final class Show implements ShowHandle {
         public String motion = "none";
         public double mspeed = 0.05, lift = 0;
         public int refresh = 12;      // раз в сколько тиков обновляется КАЖДАЯ точка этого слоя
+        public boolean burst = false; // весь слой в один тик, а не размазанный по refresh кадрам
+        public double driftX, driftY, driftZ;   // блоков за тик, мировые оси
+        public boolean hasDrift;
+        public double waveAmp, waveSpeed;       // волна по буквам
         public boolean colorAnimated;
         // ---- собственный таймлайн слоя (сцены) ----
         public int from = 0, to = -1;            // когда слой живёт, в тиках от старта шоу
@@ -121,7 +125,10 @@ public final class Show implements ShowHandle {
 
     private void setBasis(Location center, Player creator) {
         double dx, dy, dz;
-        if (face.equals("player") || face.equals("auto")) {
+        if (face.equals("loc") || face.equals("path")) {
+            org.bukkit.util.Vector d = center.getDirection();
+            dx = d.getX(); dy = d.getY(); dz = d.getZ();
+        } else if (face.equals("player") || face.equals("auto")) {
             Location l = creator != null ? creator.getEyeLocation() : center;
             org.bukkit.util.Vector d = l.getDirection();
             dx = d.getX(); dy = d.getY(); dz = d.getZ();
@@ -363,12 +370,38 @@ public final class Show implements ShowHandle {
             double lcx = Math.cos(rax), lsx = Math.sin(rax), lcy = Math.cos(ray),
                    lsy = Math.sin(ray), lcz = Math.cos(raz), lsz = Math.sin(raz);
 
+            // Полёт целой фигуры силами клиента.
+            // Частица тормозится трением 0.98, поэтому точка спавна едет ровно по тому же
+            // закону, а скорость нового кадра уменьшается на столько же. В итоге все частицы
+            // и точка рождения идут в ногу: фигура летит, старые частицы летят вместе с ней,
+            // и после неё не остаётся ни одного брошенного куска.
+            double driftOffX = 0, driftOffY = 0, driftOffZ = 0, driftScale = 1;
+            if (L.hasDrift) {
+                double age = since;
+                double travelled = (1 - Math.pow(0.98, age)) / 0.02;
+                driftOffX = L.driftX * travelled;
+                driftOffY = L.driftY * travelled;
+                driftOffZ = L.driftZ * travelled;
+                driftScale = Math.pow(0.98, age);
+            }
+
             double minX = lMinX[li], maxX = lMaxX[li], minY = lMinY[li], maxY = lMaxY[li], radiusMax = lRad[li];
             double width = Math.max(0.001, maxX - minX), height = Math.max(0.001, maxY - minY);
 
             int stride = Math.max(1, (int) Math.ceil(L.refresh * thin));
 
-            for (int i = from + (elapsed % stride); i < to; i += stride) {
+            // Обычно точки раскидываются по stride кадрам, чтобы нагрузка была ровной.
+            // Для надписей это выглядит как загрузка картинки по строчкам, поэтому есть burst:
+            // слой целиком вспыхивает разом, зато только раз в stride тиков.
+            int step = L.burst ? 1 : stride;
+            int first = from;
+            if (L.burst) {
+                if (elapsed % stride != 0) continue;
+            } else {
+                first = from + (elapsed % stride);
+            }
+
+            for (int i = first; i < to; i += step) {
                 if (density < 1 && buf.seed[i] > density) continue;
 
                 double lx = buf.x[i] * scale * zoom, ly = buf.y[i] * scale * zoom, lz = buf.z[i] * scale * zoom;
@@ -424,8 +457,23 @@ public final class Show implements ShowHandle {
                             break;
                         }
                         case "fall": oy -= v * v * (height + 12) * (0.5 + s); break;
+                        case "letters": {                          // буквы разлетаются по очереди
+                            int groups = Math.max(1, buf.groups);
+                            double slot = (double) buf.grp[i] / groups;
+                            double local = (v - slot * 0.6) / 0.4;
+                            if (local <= 0) break;
+                            if (local >= 1) continue;
+                            oy -= local * local * (height + 10);
+                            ox += (s - 0.5) * local * 8;
+                            break;
+                        }
                         case "implode": case "shrink": sc *= (1 - v); break;
                     }
+                }
+
+                if (L.waveAmp != 0) {
+                    // Волна идёт по буквам: соседние поднимаются с небольшим сдвигом по фазе
+                    ly += L.waveAmp * Math.sin(T * L.waveSpeed + buf.grp[i] * 0.6);
                 }
 
                 lx = lx * sc + ox; ly = ly * sc + oy; lz = lz * sc + oz;
@@ -444,9 +492,9 @@ public final class Show implements ShowHandle {
                     lx = x3; ly = y3; lz = z2;
                 }
 
-                double wx = cx + R[0] * lx + U[0] * ly + F[0] * lz;
-                double wy = cy + R[1] * lx + U[1] * ly + F[1] * lz;
-                double wz = cz + R[2] * lx + U[2] * ly + F[2] * lz;
+                double wx = cx + R[0] * lx + U[0] * ly + F[0] * lz + driftOffX;
+                double wy = cy + R[1] * lx + U[1] * ly + F[1] * lz + driftOffY;
+                double wz = cz + R[2] * lx + U[2] * ly + F[2] * lz + driftOffZ;
                 if (!anchor.equals("player")) { wx += offset[0]; wy += offset[1]; wz += offset[2]; }
 
                 if (cull > 0) {
@@ -490,7 +538,10 @@ public final class Show implements ShowHandle {
                     speed = L.mspeed;
                 }
 
-                if (flying) {                   // ванильная механика скорости: летит и гаснет на месте фигуры
+                if (L.hasDrift) {               // фигуру везёт клиент, сервер только рождает точки
+                    dx = L.driftX; dy = L.driftY; dz = L.driftZ;
+                    speed = driftScale;
+                } else if (flying) {            // ванильная механика скорости: летит и гаснет на месте фигуры
                     dx = -F[0]; dy = -F[1]; dz = -F[2];
                     speed = flySpd;
                 } else if (Painter.isDust(L.particle)) {

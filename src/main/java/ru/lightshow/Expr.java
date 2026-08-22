@@ -270,6 +270,40 @@ public final class Expr {
                 /** cellx/celly(i,cols) — координаты клетки в сетке по номеру точки. */
                 case "cellx": need(f,a,2,st); return c -> { double n2 = Math.max(1, Math.floor(a[1].ev(c))); return Math.floor(a[0].ev(c)) % n2; };
                 case "celly": need(f,a,2,st); return c -> { double n2 = Math.max(1, Math.floor(a[1].ev(c))); return Math.floor(Math.floor(a[0].ev(c)) / n2); };
+                /** bez(t,a,b,c,d) — кубическая кривая Безье: плавность без цепочек lerp. */
+                case "bez": need(f,a,5,st); return c -> {
+                    double x = clamp(a[0].ev(c), 0, 1), m = 1 - x;
+                    return m*m*m*a[1].ev(c) + 3*m*m*x*a[2].ev(c) + 3*m*x*x*a[3].ev(c) + x*x*x*a[4].ev(c);
+                };
+                /** ease(t,in,out) — своя мягкость на входе и выходе, как ручки у ключа. */
+                case "curve": need(f,a,3,st); return c -> {
+                    double x = clamp(a[0].ev(c), 0, 1), m = 1 - x;
+                    double p1 = clamp(a[1].ev(c), 0, 1), p2 = clamp(a[2].ev(c), 0, 1);
+                    return 3*m*m*x*p1 + 3*m*x*x*p2 + x*x*x;
+                };
+                /** key(x, x0,y0, x1,y1, ...) — ключевые кадры с мягким переходом между ними. */
+                case "key": {
+                    if (a.length < 3 || (a.length - 1) % 2 != 0)
+                        throw new ParseError("key() ждёт время и пары «момент, значение»", st);
+                    final Node[] k = a;
+                    return c -> {
+                        double x = k[0].ev(c);
+                        int pairs = (k.length - 1) / 2;
+                        double firstX = k[1].ev(c);
+                        if (x <= firstX) return k[2].ev(c);
+                        for (int i = 0; i < pairs - 1; i++) {
+                            double x0 = k[1 + i * 2].ev(c), x1 = k[3 + i * 2].ev(c);
+                            if (x > x1) continue;
+                            double y0 = k[2 + i * 2].ev(c), y1 = k[4 + i * 2].ev(c);
+                            double span = x1 - x0;
+                            if (span <= 1e-9) return y1;
+                            double u = clamp((x - x0) / span, 0, 1);
+                            u = u * u * (3 - 2 * u);
+                            return y0 * (1 - u) + y1 * u;
+                        }
+                        return k[k.length - 1].ev(c);
+                    };
+                }
                 case "step4": need(f,a,1,st); return c -> {
                     double k = a[0].ev(c); double base = Math.floor(k);
                     double fr = clamp((k - base) * 3.0 - 1.6, 0, 1);

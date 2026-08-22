@@ -49,6 +49,16 @@ public interface LayerBuilder {
     LayerBuilder chance(double probability);
     LayerBuilder batch(int count, double spread); // несколько частиц одним пакетом
     LayerBuilder lift(double lift);
+    /** Зажечь весь слой за один кадр вместо размазывания по refresh тикам. */
+    LayerBuilder burst(boolean burst);
+    /**
+     * Полёт всей фигуры силами клиента, блоков за тик в мировых осях.
+     * Точка рождения и уже живущие частицы двигаются по одному закону,
+     * поэтому позади не остаётся ни одной брошенной частицы.
+     */
+    LayerBuilder drift(double x, double y, double z);
+    /** Волна по буквам: амплитуда в блоках и скорость. */
+    LayerBuilder wave(double amplitude, double speed);
 
     // ---- прочее ----
     LayerBuilder refresh(int ticks);

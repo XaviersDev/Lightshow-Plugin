@@ -183,10 +183,9 @@ public final class Presets {
             g.px = p.num("px", 0.15);
             out.add(style(g, p));
         } else if (preset.type.equals("text")) {
-            Fonts.Bitmap bm = Fonts.render(preset.text, p.str("font", "pixel"), p.lower("align", "center"),
-                    p.integer("spacing", 1), p.integer("lgap", 3));
-            if (p.bool("outline", false)) bm = Fonts.outline(bm);
-            Geo.BitmapGeo g = new Geo.BitmapGeo(bm);
+            // По буквам, чтобы каждую можно было двигать отдельно
+            Geo.TextGeo g = new Geo.TextGeo(Fonts.glyphs(preset.text, p.str("font", "pixel"),
+                p.lower("align", "center"), p.integer("spacing", 1), p.integer("lgap", 3)));
             g.px = p.num("px", 0.25);
             out.add(style(g, p));
         }
@@ -250,6 +249,12 @@ public final class Presets {
         }
         l.colorAnimated = l.col.animated();
 
+        l.burst = p.bool("burst", false);
+        double[] drift = p.vec("drift", 0, 0, 0);
+        l.driftX = drift[0]; l.driftY = drift[1]; l.driftZ = drift[2];
+        l.hasDrift = p.has("drift") && (drift[0] != 0 || drift[1] != 0 || drift[2] != 0);
+        double[] wave = p.vec("wave", 0, 6, 0);
+        l.waveAmp = wave[0]; l.waveSpeed = wave[1] == 0 ? 6 : wave[1];
         l.every = Math.max(0, p.ticks("every", 0));
         l.forT = Math.max(0, p.ticks("for", 0));
         return l;
