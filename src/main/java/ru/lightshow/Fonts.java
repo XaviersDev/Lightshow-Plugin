@@ -53,9 +53,10 @@ public final class Fonts {
             for (int i = 0; i < line.length(); i++) {
                 char ch = line.charAt(i);
                 if (ch == ' ') { cursor += 3 + spacing; continue; }
-                Bitmap bm = pf != null ? renderLinePixel(String.valueOf(ch), pf, spacing)
-                    : renderAwt(String.valueOf(ch), font);
-                if (bm == null) bm = renderLinePixel(String.valueOf(ch), BUILTIN.get("pixel"), spacing);
+                // Обрезаем букву только по бокам. Если резать и сверху, короткие буквы
+                // всплывают, а хвостатые проваливаются: строка перестаёт стоять на линии.
+                Bitmap bm = pf != null ? renderGlyph(ch, pf) : renderAwt(String.valueOf(ch), font);
+                if (bm == null) bm = renderGlyph(ch, BUILTIN.get("pixel"));
                 row.add(new Glyph(bm, cursor, 0));
                 cursor += bm.w + spacing;
                 tallest = Math.max(tallest, bm.h);
@@ -232,6 +233,25 @@ public final class Fonts {
                 if (b.get(x, y) && !(b.get(x - 1, y) && b.get(x + 1, y) && b.get(x, y - 1) && b.get(x, y + 1)))
                     out.set(x, y);
         return out;
+    }
+
+    /** Одна буква во всю высоту шрифта: по вертикали ничего не обрезаем. */
+    private static Bitmap renderGlyph(char ch, PixelFont f) {
+        if (f == null) return new Bitmap(1, 4);
+        int[] ink = f.inkOf(ch);
+        if (ink[1] < ink[0]) return new Bitmap(3, f.rows);
+
+        int width = ink[1] - ink[0] + 1;
+        Bitmap bm = new Bitmap(width, f.rows);
+        int[] g = f.rowsOf(ch);
+        if (g != null) {
+            for (int y = 0; y < f.rows; y++) {
+                for (int x = ink[0]; x <= ink[1]; x++) {
+                    if ((g[y] & (1 << (f.cols - 1 - x))) != 0) bm.set(x - ink[0], y);
+                }
+            }
+        }
+        return bm;
     }
 
     private static Bitmap renderLinePixel(String line, PixelFont f, int spacing) {

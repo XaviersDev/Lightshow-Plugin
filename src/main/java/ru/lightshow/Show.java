@@ -15,6 +15,12 @@ import java.util.function.Consumer;
 /** Одно запущенное шоу. */
 public final class Show implements ShowHandle {
 
+    /** end_rod и родня тормозятся на это за тик: SimpleAnimatedParticle, а не базовый Particle. */
+    public static final double DRIFT_FRICTION = 0.91D;
+    /** Путь частицы за всю жизнь при скорости 1: сумма 0.91^k за 60 тиков. */
+    public static final double LIFE_TRAVEL_BLOCKS = (1 - Math.pow(0.91D, 60)) / (1 - 0.91D);
+
+
     /** Слой = геометрия + свой стиль частиц. В одном шоу их может быть сколько угодно. */
     public static final class Layer {
         public Geo.Source src;
@@ -27,6 +33,7 @@ public final class Show implements ShowHandle {
         public boolean burst = false; // весь слой в один тик, а не размазанный по refresh кадрам
         public double driftX, driftY, driftZ;   // блоков за тик, мировые оси
         public boolean hasDrift;
+        public int driftTicks = 0;              // 0 = лететь всё время слоя
         public double waveAmp, waveSpeed;       // волна по буквам
         public boolean colorAnimated;
         // ---- собственный таймлайн слоя (сцены) ----
@@ -306,7 +313,7 @@ public final class Show implements ShowHandle {
         // end_rod: трение 0.98, жизнь ~60 тиков => путь за жизнь = speed * 35 блоков.
         // Значит частица, рождённая в d блоках позади, долетит ровно до фигуры и там погаснет,
         // если дать ей speed = d/35. Раньше я брал d/inT — отсюда и перелёт мимо текста.
-        final double LIFE_TRAVEL = 35.0;
+        final double LIFE_TRAVEL = LIFE_TRAVEL_BLOCKS;
 
         // общий лимит: если слои вместе просят больше, чем можно — равномерно разрежаем
         int allowed = maxPerTick;
@@ -376,13 +383,19 @@ public final class Show implements ShowHandle {
             // и точка рождения идут в ногу: фигура летит, старые частицы летят вместе с ней,
             // и после неё не остаётся ни одного брошенного куска.
             double driftOffX = 0, driftOffY = 0, driftOffZ = 0, driftScale = 1;
+            boolean driftNow = false;
             if (L.hasDrift) {
-                double age = since;
-                double travelled = (1 - Math.pow(0.98, age)) / 0.02;
+                // SimpleAnimatedParticle переопределяет tick() и гасит скорость на 0.91 за тик,
+                // а не на 0.98 из базового Particle. Именно по этому закону едет точка рождения.
+                double age = L.driftTicks > 0 ? Math.min(since, L.driftTicks) : since;
+                double travelled = (1 - Math.pow(DRIFT_FRICTION, age)) / (1 - DRIFT_FRICTION);
                 driftOffX = L.driftX * travelled;
                 driftOffY = L.driftY * travelled;
                 driftOffZ = L.driftZ * travelled;
-                driftScale = Math.pow(0.98, age);
+
+                // Полёт кончился — держим фигуру там, где она встала, а не тянем дальше
+                driftNow = L.driftTicks <= 0 || since < L.driftTicks;
+                driftScale = driftNow ? Math.pow(DRIFT_FRICTION, age) : 0;
             }
 
             double minX = lMinX[li], maxX = lMaxX[li], minY = lMinY[li], maxY = lMaxY[li], radiusMax = lRad[li];
@@ -393,12 +406,18 @@ public final class Show implements ShowHandle {
             // Обычно точки раскидываются по stride кадрам, чтобы нагрузка была ровной.
             // Для надписей это выглядит как загрузка картинки по строчкам, поэтому есть burst:
             // слой целиком вспыхивает разом, зато только раз в stride тиков.
+            // Пока идёт появление или уход, обновляемся часто: иначе анимация по буквам
+            // просто не успевает показаться между редкими кадрами.
+            if (appear < 1 || vanish > 0) stride = Math.min(stride, 2);
+
+            // Считаем от ВОЗРАСТА слоя, а не от времени шоу: раньше слой с refresh 40
+            // ждал ближайший тик, кратный сорока, и текст возникал спустя две секунды разом.
             int step = L.burst ? 1 : stride;
             int first = from;
             if (L.burst) {
-                if (elapsed % stride != 0) continue;
+                if (since % stride != 0) continue;
             } else {
-                first = from + (elapsed % stride);
+                first = from + (since % stride);
             }
 
             for (int i = first; i < to; i += step) {
@@ -538,9 +557,11 @@ public final class Show implements ShowHandle {
                     speed = L.mspeed;
                 }
 
-                if (L.hasDrift) {               // фигуру везёт клиент, сервер только рождает точки
+                if (L.hasDrift && driftNow) {   // фигуру везёт клиент, сервер только рождает точки
                     dx = L.driftX; dy = L.driftY; dz = L.driftZ;
                     speed = driftScale;
+                } else if (L.hasDrift) {        // долетели: дальше точки просто стоят на месте
+                    dx = 0; dy = 0; dz = 0; speed = 0;
                 } else if (flying) {            // ванильная механика скорости: летит и гаснет на месте фигуры
                     dx = -F[0]; dy = -F[1]; dz = -F[2];
                     speed = flySpd;

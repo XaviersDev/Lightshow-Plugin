@@ -270,6 +270,7 @@ vanilla velocity, arriving exactly as they expire. Each point departs at its own
 | `count:` / `spread:` | 0 / 0.3 | pack several particles into ONE packet (clouds, smoke); incompatible with a velocity |
 | `lift:` | 0 | small upward velocity to counter end_rod's slight gravity |
 | `drift:x,y,z` | — | the WHOLE figure flies, blocks per tick, world axes. See below. |
+| `driftt:` | whole layer | how long the flight lasts; afterwards the figure holds its final place |
 | `wave:amp,speed` | — | wave running through the letters of a text layer |
 
 ### 6.6 Performance (S unless noted)
@@ -331,14 +332,25 @@ coordinates leaves the old particles hanging behind it. `drift:` solves this pro
 drift:0.12,0,-0.3        blocks per tick, world axes
 ```
 
-The engine advances the spawn point by `v·(1−0.98^age)/0.02` — the exact integral of a particle's
-path under the 0.98 friction — and multiplies each new spawn's velocity by `0.98^age`. Spawn point
-and every living particle therefore travel in lockstep: verified drift between them is 0.000 blocks
-at ticks 20, 40 and 60. The client does all the moving, and **not a single extra particle is
-created** — there are exactly as many as there would be standing still.
+`end_rod` and its relatives are `SimpleAnimatedParticle`, which **overrides** `tick()` and damps
+velocity by **0.91** per tick — not the 0.98 of the base `Particle`. Over its 60-tick life a particle
+therefore covers only
 
-Pair it with `burst:true` and `refresh:40`: re-spawning often is pointless when the client is
-already carrying each particle for its whole life.
+```
+v · (1 − 0.91^60) / 0.09  ≈  v · 11.07 blocks
+```
+
+The engine advances the spawn point by exactly that integral and multiplies each new spawn's
+velocity by `0.91^age`, so the spawn point and every living particle travel in lockstep. The client
+does all the moving, and **not a single extra particle is created** — there are exactly as many as
+there would be standing still.
+
+Because a particle only lives 60 ticks, a flight cannot last longer than about **55 ticks (2.75 s)**;
+after that nothing is left to carry the figure. Use `driftt:` to say how long the flight lasts — when
+it ends, the spawn point freezes and new particles get zero velocity, so the figure simply holds
+where it stopped instead of creeping onward forever.
+
+Pair it with `burst:true` and `refresh:55`: one live copy per point, no accumulation, no smear.
 
 ## 7c. Text is rendered letter by letter
 
@@ -486,6 +498,8 @@ steps:200 refresh:20 cull:0 view:160 particle:dust color:rainbow psize:1.6 motio
 | moving a shape by animating `ox/oy/oz` and leaving a trail | `drift:` |
 | stacking `lerp(a,b,smooth((T-x)/y))` three times | `key(T, …)` |
 | text that loads in strips | `burst:true` (already default for text) |
+| a flight that never stops and keeps creeping closer | `driftt:` |
+| assuming 0.98 friction for end_rod | it is **0.91**, the whole-life path is `v · 11.07` |
 | building squares or tetrominoes from formulas | `pix:0110/1111` |
 | a falling object made with `motion:down` on a static point | animate the layer with `oy:…smooth(…)` |
 | a meteor made of one particle with no trail | `vx/vy/vz` + `trail:` + `jitter:` + `chance:` |

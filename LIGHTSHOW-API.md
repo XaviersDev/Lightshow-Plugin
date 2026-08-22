@@ -26,7 +26,7 @@ Maven (install the jar into your local repo, or use jitpack):
 <dependency>
     <groupId>ru.lightshow</groupId>
     <artifactId>LightShow</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -34,7 +34,7 @@ Maven (install the jar into your local repo, or use jitpack):
 Gradle:
 
 ```groovy
-compileOnly 'ru.lightshow:LightShow:2.1.0'
+compileOnly 'ru.lightshow:LightShow:2.2.0'
 ```
 
 **Never shade LightShow into your jar.** It must stay a single runtime instance, otherwise you get
@@ -235,12 +235,14 @@ Because it clamps, a movement stops and **stays** at its end value.
 ```java
 .burst(true)                       // the layer lights up in one frame
 .drift(0.12, 0, -0.3)              // the figure flies, blocks per tick, world axes
+.param("driftt", "40t")            // for how long; afterwards it holds its final place
 .wave(0.35, 5)                     // a wave running through the letters
 .in("letters", 26).out("letters", 18)
 ```
 
-`drift` moves the spawn point and every living particle by the same law, so nothing is left
-behind and no extra particles are created. Text layers are split per glyph, which is what makes
+`drift` moves the spawn point and every living particle by the same law (friction 0.91, whole-life
+path `v · 11.07` blocks), so nothing is left behind and no extra particles are created. A flight
+cannot outlive a particle: keep it under ~55 ticks and let `driftt` freeze it there. Text layers are split per glyph, which is what makes
 `letters`, `typeletters` and `popletters` possible.
 
 ### 6.5 Particle motion and emitters

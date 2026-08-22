@@ -253,6 +253,7 @@ public final class Presets {
         double[] drift = p.vec("drift", 0, 0, 0);
         l.driftX = drift[0]; l.driftY = drift[1]; l.driftZ = drift[2];
         l.hasDrift = p.has("drift") && (drift[0] != 0 || drift[1] != 0 || drift[2] != 0);
+        l.driftTicks = Math.max(0, p.ticks("driftt", 0));
         double[] wave = p.vec("wave", 0, 6, 0);
         l.waveAmp = wave[0]; l.waveSpeed = wave[1] == 0 ? 6 : wave[1];
         l.every = Math.max(0, p.ticks("every", 0));
