@@ -187,6 +187,31 @@ by placing many copies at different distances.
 `curve(x,in,out)` an easing with your own handles. Use them in `ox`, `oy`, `oz`, `zoom`, `rotz`
 instead of stacking `lerp` and `smooth`.
 
+## 5e. `drift:` is your best tool, use it often
+
+`drift:x,y,z` gives the WHOLE figure a velocity in world axes, blocks per tick. The client carries
+every particle itself, so nothing is re-spawned and nothing is left behind. It is the cleanest
+motion the engine has, and it costs exactly as much as standing still.
+
+```
+/ptext AWAY dist:16 burst:true driftt:5s drift:0,5.0,3
+```
+
+That word leaps up and to the right and keeps going. Alternate the sign of X between lines and you
+get words throwing themselves left, right, left, right in time with a repeated phrase — a very
+strong effect for one parameter. Always pair it with `burst:true`, and use `driftt:` to say when the
+flight stops.
+
+Reach for `drift` whenever something should move. Only fall back to animating `ox/oy/oz` when the
+motion must follow a curve that a constant velocity cannot express.
+
+## 5f. Thickness
+
+`thick:1..3` draws extra particles around every point, so lines read as fat neon instead of thin
+dots. Neighbours share the spawn tick and the velocity, so movement stays perfectly in sync.
+Each step multiplies the particle count by roughly four, so use `thick:1` on the shapes that matter
+and leave backgrounds thin.
+
 ## 6b. This is a parkour level
 
 The player is jumping while your effects play.
